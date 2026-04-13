@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Timelab">
+<link rel="manifest" href="manifest_tracker.json">
+<title>Timelab — Tracker</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { background: #000; color: #fff; font-family: -apple-system, 'SF Pro Display', sans-serif; min-height: 100vh; overscroll-behavior: none; }
+::-webkit-scrollbar { display: none; }
+input[type=date]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: .5; }
+textarea { background: #2c2c2e; border: none; border-radius: 10px; color: #fff; padding: 13px 14px; font-size: 16px; width: 100%; outline: none; font-family: inherit; resize: none; }
+select { background: #2c2c2e; border: none; border-radius: 10px; color: #fff; padding: 13px 14px; font-size: 16px; width: 100%; outline: none; -webkit-appearance: none; }
+input[type=text], input[type=number], input[type=date] { background: #2c2c2e; border: none; border-radius: 10px; color: #fff; padding: 13px 14px; font-size: 16px; width: 100%; outline: none; -webkit-appearance: none; -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+@keyframes slideUp { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes fadeIn  { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:translateY(0) } }
+@keyframes spin    { from { transform:rotate(0deg) } to { transform:rotate(360deg) } }
+
+/* LAYOUT */
+#app { max-width: 430px; margin: 0 auto; padding-bottom: 90px; }
+.safe-top { height: env(safe-area-inset-top, 44px); }
+
+/* HEADER */
+.header { padding: 16px 20px 12px; display: flex; justify-content: space-between; align-items: center; }
+.logo { font-size: 28px; font-weight: 700; letter-spacing: -1px; color: #c8aa6e; }
+.logo-sub { font-size: 12px; color: #636366; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px; }
+.header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.total-benef { font-size: 22px; font-weight: 600; }
+
+/* SYNC BADGE */
+.sync-badge { display: flex; align-items: center; gap: 5px; background: rgba(255,255,255,.06); border-radius: 8px; padding: 4px 10px; cursor: pointer; border: 1px solid transparent; }
+.sync-icon { font-size: 12px; font-weight: 700; }
+.sync-label { font-size: 10px; font-family: monospace; }
+.sync-spinning { animation: spin 1s linear infinite; display: inline-block; }
+
+/* ERROR/PENDING BANNERS */
+.banner { margin: 0 20px 10px; border-radius: 10px; padding: 10px 14px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; }
+.banner-error { background: #3a1010; border: 1px solid rgba(255,59,48,.3); color: #ff3b30; }
+.banner-pending { background: #2a2000; border: 1px solid rgba(255,214,10,.3); color: #ffd60a; }
+.banner-close { background: none; border: none; cursor: pointer; font-size: 14px; color: inherit; }
+
+/* STATS BAR */
+.stats-bar { display: flex; gap: 8px; padding: 0 20px 16px; overflow-x: auto; }
+.stat-card { background: #1c1c1e; border-radius: 12px; padding: 10px 14px; flex-shrink: 0; min-width: 80px; text-align: center; }
+.stat-val { font-size: 18px; font-weight: 600; }
+.stat-lbl { font-size: 10px; color: #636366; margin-top: 2px; }
+
+/* TABS */
+.tabs { display: flex; padding: 0 20px; gap: 8px; margin-bottom: 16px; }
+.tab-btn { flex: 1; padding: 10px 0; border-radius: 10px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; transition: all .15s; }
+.tab-btn.active { background: #c8aa6e; color: #000; }
+.tab-btn:not(.active) { background: #1c1c1e; color: #8e8e93; }
+
+/* TAB CONTENT */
+.tab-pane { padding: 0 20px; animation: fadeIn .2s ease; display: none; }
+.tab-pane.active { display: block; }
+
+/* SEARCH */
+.search-wrap { position: relative; margin-bottom: 12px; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #636366; font-size: 16px; pointer-events: none; }
+.search-input { background: #1c1c1e; border: none; border-radius: 10px; color: #fff; padding: 12px 14px 12px 38px; font-size: 15px; width: 100%; outline: none; }
+
+/* FILTER PILLS */
+.pills { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; padding-bottom: 4px; }
+.pill { padding: 7px 16px; border-radius: 20px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; flex-shrink: 0; transition: all .15s; }
+.pill.active { background: #c8aa6e; color: #000; }
+.pill:not(.active) { background: #2c2c2e; color: #8e8e93; }
+
+/* OP CARDS */
+.ops-list { display: flex; flex-direction: column; gap: 10px; }
+.op-card { background: #1c1c1e; border-radius: 16px; padding: 14px 16px; cursor: pointer; animation: fadeIn .15s ease; }
+.op-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.op-marca { font-size: 16px; font-weight: 600; letter-spacing: -.3px; }
+.op-modelo { font-size: 13px; color: #8e8e93; margin-top: 2px; }
+.op-meta { font-size: 12px; color: #636366; margin-top: 4px; }
+.op-right { text-align: right; flex-shrink: 0; margin-left: 12px; }
+.op-benef { font-size: 18px; font-weight: 700; }
+.op-roi { font-size: 12px; margin-top: 2px; }
+.op-coste { font-size: 14px; font-weight: 600; color: #e85050; }
+.op-tags { display: flex; gap: 6px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+.tag { font-size: 11px; padding: 3px 8px; border-radius: 6px; font-weight: 500; }
+.tag-vendido   { background: #1a3a1a; color: #4cd964; }
+.tag-publicado { background: #102030; color: #60b0e8; }
+.tag-pendiente { background: #2c2c2e; color: #8e8e93; }
+.tag-dias { background: #2c2c2e; }
+.tag-canal { font-size: 11px; color: #636366; }
+
+/* EMPTY STATE */
+.empty-state { text-align: center; padding: 60px 0; color: #636366; }
+.empty-icon { font-size: 40px; margin-bottom: 12px; }
+
+/* STOCK TAB */
+.stock-header { margin-bottom: 16px; font-size: 13px; color: #8e8e93; }
+.stock-card { background: #1c1c1e; border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; }
+.stock-card-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.stock-name { font-size: 15px; font-weight: 600; }
+.stock-name span { color: #8e8e93; font-weight: 400; }
+.stock-meta { font-size: 12px; color: #636366; margin-top: 3px; }
+.stock-dias { font-size: 22px; font-weight: 700; }
+.stock-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-top: 2px; text-align: right; }
+.stock-sugerido { margin-top: 10px; font-size: 12px; color: #8e8e93; }
+.stock-sugerido span { color: #c8aa6e; }
+
+/* DASH TAB */
+.dash-row { background: #1c1c1e; border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.dash-lbl { font-size: 14px; color: #8e8e93; }
+.dash-val { font-size: 18px; font-weight: 600; }
+.dash-val.big { font-size: 22px; }
+
+/* FAB */
+.fab { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); right: 20px; width: 56px; height: 56px; border-radius: 50%; background: #c8aa6e; border: none; font-size: 26px; cursor: pointer; box-shadow: 0 4px 20px rgba(200,170,110,.4); display: flex; align-items: center; justify-content: center; z-index: 50; color: #000; font-weight: 300; }
+
+/* BOTTOM NAV */
+.bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: rgba(28,28,30,.95); backdrop-filter: blur(20px); border-top: 1px solid #2c2c2e; padding: 12px 0; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; z-index: 50; }
+.nav-btn { flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.nav-icon { font-size: 20px; }
+.nav-lbl { font-size: 10px; font-weight: 400; color: #636366; }
+.nav-btn.active .nav-lbl { color: #c8aa6e; font-weight: 600; }
+
+/* SHEET OVERLAY */
+.sheet-overlay { position: fixed; inset: 0; z-index: 200; display: none; }
+.sheet-overlay.open { display: block; }
+.sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,.7); }
+.sheet-panel { position: absolute; bottom: 0; left: 0; right: 0; background: #1c1c1e; border-radius: 20px 20px 0 0; max-height: 92vh; overflow: hidden; display: flex; flex-direction: column; animation: slideUp .3s cubic-bezier(.32,.72,0,1); }
+.sheet-handle-wrap { padding: 12px 20px 0; flex-shrink: 0; }
+.sheet-handle { width: 36px; height: 4px; background: #3a3a3c; border-radius: 2px; margin: 0 auto 14px; }
+.sheet-title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.sheet-title { font-size: 17px; font-weight: 600; letter-spacing: -.3px; }
+.sheet-close { background: #2c2c2e; border: none; color: #8e8e93; width: 30px; height: 30px; border-radius: 50%; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.sheet-body { overflow-y: auto; padding: 0 20px 40px; -webkit-overflow-scrolling: touch; }
+
+/* FORM */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-full { grid-column: 1/-1; }
+.form-sep { grid-column: 1/-1; height: 1px; background: #2c2c2e; margin: 4px 0; }
+.field-lbl { font-size: 12px; color: #8e8e93; margin-bottom: 6px; letter-spacing: .3px; text-transform: uppercase; }
+.field-wrap { margin-bottom: 0; }
+
+/* PREVIEW */
+.preview-box { background: #2c2c2e; border-radius: 12px; padding: 14px 16px; margin-top: 8px; margin-bottom: 16px; }
+.preview-title { font-size: 11px; color: #636366; margin-bottom: 10px; text-transform: uppercase; letter-spacing: .5px; }
+.preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.preview-lbl { font-size: 11px; color: #636366; }
+.preview-val { font-size: 18px; font-weight: 600; color: #fff; }
+
+/* SAVE BTN */
+.save-btn { width: 100%; background: #c8aa6e; border: none; border-radius: 14px; padding: 16px; font-size: 16px; font-weight: 600; cursor: pointer; color: #000; margin-top: 8px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.save-btn:disabled { background: #8a7040; cursor: default; }
+
+/* DETALLE */
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+.detail-cell { background: #2c2c2e; border-radius: 10px; padding: 12px 14px; }
+.detail-cell-lbl { font-size: 11px; color: #636366; margin-bottom: 4px; }
+.detail-cell-val { font-size: 15px; font-weight: 600; }
+.detail-info { background: #2c2c2e; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.detail-info-lbl { font-size: 11px; color: #636366; margin-bottom: 4px; }
+.detail-info-val { font-size: 14px; }
+.detail-actions { display: flex; gap: 10px; }
+.btn-edit { flex: 1; background: #c8aa6e; border: none; border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 600; cursor: pointer; color: #000; }
+.btn-delete { background: #3a1010; border: none; border-radius: 12px; padding: 14px 18px; font-size: 15px; cursor: pointer; color: #ff3b30; }
+</style>
+</head>
+<body>
+<div class="safe-top"></div>
+<div id="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div>
+      <div class="logo">TIMELAB</div>
+      <div class="logo-sub">Operations Tracker</div>
+    </div>
+    <div class="header-right">
+      <div class="total-benef" id="headerBenef">0€</div>
+      <div class="sync-badge" id="syncBadge" onclick="pullFromSheet()">
+        <span class="sync-icon" id="syncIcon" style="color:#636366">○</span>
+        <span class="sync-label" id="syncLabel" style="color:#636366">Sheet</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANNERS -->
+  <div class="banner banner-error" id="errorBanner" style="display:none">
+    <span id="errorMsg"></span>
+    <button class="banner-close" onclick="document.getElementById('errorBanner').style.display='none'">✕</button>
+  </div>
+  <div class="banner banner-pending" id="pendingBanner" style="display:none">
+    <span id="pendingMsg"></span>
+  </div>
+
+  <!-- STATS BAR -->
+  <div class="stats-bar" id="statsBar"></div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('ops',this)">Operaciones</button>
+    <button class="tab-btn" onclick="switchTab('stock',this)">Stock</button>
+    <button class="tab-btn" onclick="switchTab('dash',this)">Resumen</button>
+  </div>
+
+  <!-- OPS TAB -->
+  <div class="tab-pane active" id="tab-ops">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" type="text" id="searchInput" placeholder="Buscar marca, modelo..." oninput="renderOps()">
+    </div>
+    <div class="pills" id="filterPills"></div>
+    <div class="ops-list" id="opsList"></div>
+  </div>
+
+  <!-- STOCK TAB -->
+  <div class="tab-pane" id="tab-stock">
+    <div class="stock-header" id="stockHeader"></div>
+    <div id="stockList"></div>
+  </div>
+
+  <!-- DASH TAB -->
+  <div class="tab-pane" id="tab-dash">
+    <div id="dashContent"></div>
+  </div>
+
+</div>
+
+<!-- FAB -->
+<button class="fab" onclick="openNew()">+</button>
+
+<!-- BOTTOM NAV -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-ops" onclick="switchTab('ops',null,this)">
+    <span class="nav-icon">📋</span><span class="nav-lbl">Ops</span>
+  </button>
+  <button class="nav-btn" id="nav-stock" onclick="switchTab('stock',null,this)">
+    <span class="nav-icon">📦</span><span class="nav-lbl">Stock</span>
+  </button>
+  <button class="nav-btn" id="nav-dash" onclick="switchTab('dash',null,this)">
+    <span class="nav-icon">📊</span><span class="nav-lbl">Resumen</span>
+  </button>
+</div>
+
+<!-- SHEET: DETALLE -->
+<div class="sheet-overlay" id="sheetDetalle">
+  <div class="sheet-bg" onclick="closeSheet('sheetDetalle')"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle-wrap">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row">
+        <span class="sheet-title" id="detalleTitulo"></span>
+        <button class="sheet-close" onclick="closeSheet('sheetDetalle')">✕</button>
+      </div>
+    </div>
+    <div class="sheet-body" id="detalleBody"></div>
+  </div>
+</div>
+
+<!-- SHEET: FORM -->
+<div class="sheet-overlay" id="sheetForm">
+  <div class="sheet-bg" onclick="closeSheet('sheetForm')"></div>
+  <div class="sheet-panel">
+    <div class="sheet-handle-wrap">
+      <div class="sheet-handle"></div>
+      <div class="sheet-title-row">
+        <span class="sheet-title" id="formTitulo">Nueva operación</span>
+        <button class="sheet-close" onclick="closeSheet('sheetForm')">✕</button>
+      </div>
+    </div>
+    <div class="sheet-body">
+      <div class="form-grid">
+        <div class="form-full"><div class="field-lbl">MARCA *</div><input type="text" id="fMarca" placeholder="Tissot"></div>
+        <div class="form-full"><div class="field-lbl">MODELO</div><input type="text" id="fModelo" placeholder="Le Locle"></div>
+        <div>
+          <div class="field-lbl">MECANISMO</div>
+          <select id="fMecanismo"><option>Automático</option><option>Cuarzo</option><option>Cuerda</option><option>Electrónico</option></select>
+        </div>
+        <div>
+          <div class="field-lbl">PROVEEDOR</div>
+          <select id="fProveedor"><option>Wallapop</option><option>Vinted</option><option>eBay</option><option>Cash Converters</option><option>Rastro</option><option>Noza</option><option>RealCash</option><option>TicDistribution</option><option>TodoColección</option><option>Particular</option><option>Otro</option></select>
+        </div>
+        <div><div class="field-lbl">PRECIO COMPRA (€) *</div><input type="number" id="fPrecioCompra" placeholder="0" inputmode="decimal" oninput="updatePreview()"></div>
+        <div><div class="field-lbl">GASTO EXTRA (€)</div><input type="number" id="fGastoExtra" placeholder="0" inputmode="decimal" oninput="updatePreview()"></div>
+        <div class="form-full"><div class="field-lbl">FECHA COMPRA</div><input type="date" id="fFechaCompra"></div>
+        <div class="form-sep"></div>
+        <div>
+          <div class="field-lbl">CANAL VENTA</div>
+          <select id="fCanalVenta" oninput="updatePreview()"><option>Catawiki</option><option>Vinted</option><option>Chrono24</option><option>Wallapop</option><option>Particular</option><option>Otro</option></select>
+        </div>
+        <div><div class="field-lbl">ENVÍO COBRADO (€)</div><input type="number" id="fEnvio" value="50" inputmode="decimal" oninput="updatePreview()"></div>
+        <div><div class="field-lbl">PRECIO VENTA (€)</div><input type="number" id="fPrecioVenta" placeholder="0" inputmode="decimal" oninput="updatePreview()"></div>
+        <div>
+          <div class="field-lbl">ESTADO</div>
+          <select id="fEstado" onchange="toggleFechaVenta()"><option>Pendiente</option><option>Publicado</option><option>Vendido</option></select>
+        </div>
+        <div class="form-full" id="fechaVentaWrap" style="display:none">
+          <div class="field-lbl">FECHA VENTA</div><input type="date" id="fFechaVenta">
+        </div>
+        <div class="form-full"><div class="field-lbl">CLIENTE</div><input type="text" id="fCliente" placeholder="Nombre comprador"></div>
+        <div class="form-full"><div class="field-lbl">Nº FACTURA</div><input type="text" id="fFactura" placeholder="TL-2026-XXX"></div>
+        <div class="form-full"><div class="field-lbl">NOTAS</div><textarea id="fNotas" rows="3" placeholder="Condición, incidencias..."></textarea></div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div class="preview-box" id="previewBox" style="display:none">
+        <div class="preview-title">Preview</div>
+        <div class="preview-grid">
+          <div><div class="preview-lbl">Coste total</div><div class="preview-val" id="pvCoste">—</div></div>
+          <div><div class="preview-lbl">Beneficio</div><div class="preview-val" id="pvBenef">—</div></div>
+          <div><div class="preview-lbl">ROI</div><div class="preview-val" id="pvROI">—</div></div>
+          <div><div class="preview-lbl">Ingreso neto</div><div class="preview-val" id="pvIngreso">—</div></div>
+        </div>
+      </div>
+
+      <button class="save-btn" id="saveBtn" onclick="saveOp()">Guardar operación</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════
+var SHEETS_API_URL = "https://script.google.com/macros/s/AKfycbxDnFHyE5kKLUnUEUC1_4FSSMfUv3sKwARuHPIlIpuY6avV0Wz5YQbfghTtJHSU7sNN/exec";
+var SECRET_TOKEN   = "timelab2026joseba";
+var STORAGE_KEY    = "timelab_ops_v3";
+var STORAGE_SYNC   = "timelab_last_sync";
+var COMISIONES     = { Catawiki:0.125, Vinted:0.05, Chrono24:0.065, Wallapop:0.05, Particular:0, Otro:0 };
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+var ops        = [];
+var filtro     = "Todos";
+var editingId  = null;
+var syncStatus = "idle";
+var lastSync   = 0;
+var pendingOps = [];
+var syncing    = false;
+
+// ══════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════
+function today() { return new Date().toISOString().split("T")[0]; }
+function daysBetween(a, b) {
+  if (!a) return null;
+  return Math.floor((new Date(b || Date.now()) - new Date(a)) / 86400000);
+}
+function fmt(n, dec) {
+  dec = dec || 0;
+  return typeof n === "number" ? n.toFixed(dec) : "—";
+}
+function fmtTime(ts) {
+  if (!ts) return "nunca";
+  return new Date(ts).toLocaleTimeString("es-ES", { hour:"2-digit", minute:"2-digit" });
+}
+function roiColor(v) {
+  if (v === null || v === undefined) return "#555";
+  if (v >= 85) return "#4cd964";
+  if (v >= 50) return "#ffd60a";
+  return "#ff3b30";
+}
+function diasColor(v) {
+  if (v === null) return "#555";
+  if (v > 45) return "#ff3b30";
+  if (v > 25) return "#ffd60a";
+  return "#4cd964";
+}
+function escHTML(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ══════════════════════════════════════════════════════
+// STORAGE
+// ══════════════════════════════════════════════════════
+function loadLocal() {
+  try { var s = localStorage.getItem(STORAGE_KEY); return s ? JSON.parse(s) : []; } catch(e) { return []; }
+}
+function saveLocal() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(ops)); } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════
+// SYNC — Google Sheets API
+// ══════════════════════════════════════════════════════
+function setSyncUI(status, label) {
+  var badge  = document.getElementById("syncBadge");
+  var icon   = document.getElementById("syncIcon");
+  var lbl    = document.getElementById("syncLabel");
+  var colors = { syncing:"#ffd60a", synced:"#4cd964", error:"#ff3b30", offline:"#8e8e93", idle:"#636366" };
+  var icons  = { syncing:"↻", synced:"✓", error:"!", offline:"↯", idle:"○" };
+  var c = colors[status] || "#636366";
+  icon.style.color = c;
+  lbl.style.color  = c;
+  badge.style.borderColor = c + "33";
+  icon.textContent = icons[status] || "○";
+  icon.className = status === "syncing" ? "sync-icon sync-spinning" : "sync-icon";
+  lbl.textContent = label || (status === "synced" ? fmtTime(lastSync) : status);
+}
+
+async function pullFromSheet() {
+  if (syncing) return;
+  syncing = true;
+  setSyncUI("syncing", "Sync...");
+  hideBanner("errorBanner");
+  try {
+    var r = await fetch(SHEETS_API_URL);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    var json = await r.json();
+    if (!json.ok) throw new Error(json.error || "Error API");
+    ops = json.data;
+    lastSync = Date.now();
+    try { localStorage.setItem(STORAGE_SYNC, String(lastSync)); } catch(e) {}
+    saveLocal();
+    setSyncUI("synced");
+    renderAll();
+  } catch(err) {
+    setSyncUI(navigator.onLine ? "error" : "offline", "Error");
+    showBanner("errorBanner", "errorMsg", err.message);
+  } finally {
+    syncing = false;
+  }
+}
+
+async function pushOp(action, op) {
+  try {
+    setSyncUI("syncing", "Sync...");
+    var r = await fetch(SHEETS_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ token: SECRET_TOKEN, action: action, op: op })
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    var json = await r.json();
+    if (!json.ok) throw new Error(json.error || "Error POST");
+    lastSync = Date.now();
+    try { localStorage.setItem(STORAGE_SYNC, String(lastSync)); } catch(e) {}
+    setSyncUI("synced");
+  } catch(err) {
+    setSyncUI(navigator.onLine ? "error" : "offline", "Error");
+    showBanner("errorBanner", "errorMsg", err.message);
+    pendingOps.push({ action: action, op: op });
+    updatePendingBanner();
+  }
+}
+
+function updatePendingBanner() {
+  if (pendingOps.length > 0) {
+    showBanner("pendingBanner", "pendingMsg", "↯ " + pendingOps.length + " cambio(s) pendiente(s) de sincronizar");
+  } else {
+    hideBanner("pendingBanner");
+  }
+}
+
+window.addEventListener("online", async function() {
+  if (pendingOps.length === 0) return;
+  for (var i = 0; i < pendingOps.length; i++) {
+    try { await fetch(SHEETS_API_URL, { method:"POST", headers:{"Content-Type":"text/plain"}, body: JSON.stringify({ token:SECRET_TOKEN, action:pendingOps[i].action, op:pendingOps[i].op }) }); } catch(e) {}
+  }
+  pendingOps = [];
+  updatePendingBanner();
+  pullFromSheet();
+});
+
+// ══════════════════════════════════════════════════════
+// BANNERS
+// ══════════════════════════════════════════════════════
+function showBanner(id, msgId, msg) {
+  document.getElementById(id).style.display = "flex";
+  document.getElementById(msgId).textContent = msg;
+}
+function hideBanner(id) { document.getElementById(id).style.display = "none"; }
+
+// ══════════════════════════════════════════════════════
+// STATS
+// ══════════════════════════════════════════════════════
+function calcStats() {
+  var v = ops.filter(function(o) { return o.estado === "Vendido"; });
+  var p = ops.filter(function(o) { return o.estado !== "Vendido"; });
+  var benef    = v.reduce(function(s,o) { return s + (o.beneficioNeto||0); }, 0);
+  var ingr     = v.reduce(function(s,o) { return s + (parseFloat(o.precioVenta)||0); }, 0);
+  var roi      = v.length ? v.reduce(function(s,o) { return s + (o.roi||0); }, 0) / v.length : 0;
+  var capital  = p.reduce(function(s,o) { return s + (parseFloat(o.precioCompra)||0); }, 0);
+  var criticos = p.filter(function(o) { return daysBetween(o.fechaCompra) > 45; }).length;
+  var dias     = v.map(function(o) { return daysBetween(o.fechaCompra, o.fechaVenta); }).filter(function(d) { return d >= 0; });
+  var diasMedio = dias.length ? dias.reduce(function(s,d) { return s+d; }, 0) / dias.length : 0;
+  return { vendidas:v.length, benef:benef, ingr:ingr, roi:roi, capital:capital, criticos:criticos, diasMedio:diasMedio, total:ops.length };
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════
+function renderAll() {
+  var st = calcStats();
+
+  // Header beneficio
+  var hb = document.getElementById("headerBenef");
+  hb.textContent = fmt(st.benef, 0) + "€";
+  hb.style.color = st.benef >= 0 ? "#4cd964" : "#ff3b30";
+
+  // Stats bar
+  var sb = document.getElementById("statsBar");
+  var stats = [
+    { l:"ROI medio",  v:fmt(st.roi,0)+"%",        c:roiColor(st.roi) },
+    { l:"En stock",   v:String(st.total-st.vendidas), c:"#fff" },
+    { l:"Capital",    v:fmt(st.capital,0)+"€",     c:"#fff" },
+    { l:"⚠️ Parados", v:String(st.criticos),       c:st.criticos>0?"#ff3b30":"#4cd964" },
+    { l:"Días/op",    v:fmt(st.diasMedio,0)+"d",   c:"#fff" },
+  ];
+  sb.innerHTML = stats.map(function(s) {
+    return '<div class="stat-card"><div class="stat-val" style="color:'+s.c+'">'+escHTML(s.v)+'</div><div class="stat-lbl">'+escHTML(s.l)+'</div></div>';
+  }).join("");
+
+  renderOps();
+  renderStock();
+  renderDash();
+}
+
+function renderOps() {
+  // Filter pills
+  var pills = document.getElementById("filterPills");
+  var filtros = ["Todos","Pendiente","Publicado","Vendido"];
+  pills.innerHTML = filtros.map(function(f) {
+    return '<button class="pill'+(filtro===f?" active":"")+'" onclick="setFiltro(\''+f+'\')">'+f+'</button>';
+  }).join("");
+
+  // Filter + search
+  var q = (document.getElementById("searchInput").value||"").toLowerCase();
+  var filtered = ops.filter(function(o) {
+    if (filtro !== "Todos" && o.estado !== filtro) return false;
+    if (q && !(o.marca+o.modelo+o.proveedor).toLowerCase().includes(q)) return false;
+    return true;
+  }).sort(function(a,b) { return new Date(b.fechaCompra) - new Date(a.fechaCompra); });
+
+  var list = document.getElementById("opsList");
+  if (!filtered.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⌚</div><div>'+(ops.length===0?"Conectando con Google Sheets...":"Sin resultados")+'</div></div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(function(op) {
+    var dias = op.estado==="Vendido" ? daysBetween(op.fechaCompra, op.fechaVenta) : daysBetween(op.fechaCompra);
+    var tagEstado = op.estado==="Vendido"?'tag-vendido':op.estado==="Publicado"?'tag-publicado':'tag-pendiente';
+    var rightHTML = op.beneficioNeto !== null
+      ? '<div class="op-benef" style="color:'+(op.beneficioNeto>=0?"#4cd964":"#ff3b30")+'">+'+ fmt(op.beneficioNeto,0)+'€</div>'
+      + (op.roi!==null?'<div class="op-roi" style="color:'+roiColor(op.roi)+'">ROI '+fmt(op.roi,0)+'%</div>':"")
+      : '<div class="op-coste">'+escHTML(String(op.precioCompra))+'€</div>';
+    return '<div class="op-card" onclick="openDetalle(\''+op.id+'\')">'
+      +'<div class="op-card-top">'
+      +'<div><div class="op-marca">'+escHTML(op.marca)+'</div>'
+      +'<div class="op-modelo">'+escHTML(op.modelo||"—")+'</div>'
+      +'<div class="op-meta">'+escHTML(op.proveedor)+' · '+escHTML(op.fechaCompra)+'</div></div>'
+      +'<div class="op-right">'+rightHTML+'</div>'
+      +'</div>'
+      +'<div class="op-tags">'
+      +'<span class="tag '+tagEstado+'">'+escHTML(op.estado)+'</span>'
+      +(dias!==null?'<span class="tag tag-dias" style="color:'+diasColor(dias)+'">'+dias+'d</span>':"")
+      +(op.canalVenta?'<span class="tag-canal">'+escHTML(op.canalVenta)+'</span>':"")
+      +'</div>'
+      +'</div>';
+  }).join("");
+}
+
+function renderStock() {
+  var pendientes = ops.filter(function(o) { return o.estado !== "Vendido"; })
+    .map(function(o) { return Object.assign({}, o, { dias: daysBetween(o.fechaCompra) }); })
+    .sort(function(a,b) { return b.dias - a.dias; });
+  var capital = pendientes.reduce(function(s,o) { return s+(parseFloat(o.precioCompra)||0); }, 0);
+
+  document.getElementById("stockHeader").textContent = pendientes.length + " relojes · " + fmt(capital,0) + "€ capital invertido";
+
+  document.getElementById("stockList").innerHTML = pendientes.map(function(op) {
+    var u = op.dias > 60 ? { label:"CRÍTICO", c:"#ff3b30", bg:"#3a1010", border:"#ff3b30" }
+          : op.dias > 45 ? { label:"ALTO",    c:"#ff9f0a", bg:"#3a2a00", border:"#ff9f0a" }
+          : op.dias > 25 ? { label:"MEDIO",   c:"#ffd60a", bg:"#2a2500", border:"#ffd60a" }
+          :                { label:"OK",       c:"#4cd964", bg:"#0a2010", border:"#4cd964" };
+    var canal = parseFloat(op.precioCompra) > 250 ? "Chrono24" : "Vinted";
+    return '<div class="stock-card" style="border-left:3px solid '+u.border+'" onclick="openDetalle(\''+op.id+'\')">'
+      +'<div class="stock-card-top">'
+      +'<div><div class="stock-name">'+escHTML(op.marca)+' <span>'+escHTML(op.modelo)+'</span></div>'
+      +'<div class="stock-meta">'+escHTML(op.proveedor)+' · compra '+escHTML(String(op.precioCompra))+'€</div></div>'
+      +'<div style="text-align:right">'
+      +'<div class="stock-dias" style="color:'+u.c+'">'+op.dias+'d</div>'
+      +'<div class="stock-badge" style="background:'+u.bg+';color:'+u.c+'">'+u.label+'</div>'
+      +'</div></div>'
+      +'<div class="stock-sugerido">Sugerido → <span>'+canal+'</span></div>'
+      +'</div>';
+  }).join("");
+}
+
+function renderDash() {
+  var st = calcStats();
+  var rows = [
+    { l:"Beneficio neto Q2",   v:fmt(st.benef,2)+"€",      ok:st.benef>0,                     big:true },
+    { l:"Facturación Q2",      v:fmt(st.ingr,2)+"€",        ok:true },
+    { l:"ROI medio",           v:fmt(st.roi,1)+"%",          ok:st.roi>=85,  warn:st.roi>=70 },
+    { l:"Capital en stock",    v:fmt(st.capital,2)+"€",     ok:st.capital<8000, warn:st.capital<12000 },
+    { l:"Días medio de venta", v:fmt(st.diasMedio,1)+"d",   ok:st.diasMedio<=12, warn:st.diasMedio<=20 },
+    { l:"Relojes parados >45d",v:String(st.criticos),        ok:st.criticos===0, warn:st.criticos<4 },
+    { l:"Ops vendidas Q2",     v:String(st.vendidas),        ok:st.vendidas>0 },
+    { l:"Provisión IRPF 22%",  v:fmt(st.ingr*0.22,0)+"€",  ok:true },
+    { l:"Última sync",         v:lastSync ? new Date(lastSync).toLocaleString("es-ES",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—", ok:true, neutral:true },
+  ];
+  document.getElementById("dashContent").innerHTML = rows.map(function(r) {
+    var c = r.neutral ? "#636366" : r.ok ? "#4cd964" : r.warn ? "#ffd60a" : "#ff3b30";
+    var border = r.neutral ? "#636366" : c;
+    return '<div class="dash-row" style="border-left:3px solid '+border+'">'
+      +'<div class="dash-lbl">'+escHTML(r.l)+'</div>'
+      +'<div class="dash-val'+(r.big?" big":"")+'" style="color:'+c+'">'+escHTML(r.v)+'</div>'
+      +'</div>';
+  }).join("");
+}
+
+// ══════════════════════════════════════════════════════
+// DETALLE
+// ══════════════════════════════════════════════════════
+function openDetalle(id) {
+  var op = ops.find(function(o) { return String(o.id) === String(id); });
+  if (!op) return;
+  document.getElementById("detalleTitulo").textContent = op.marca + " " + (op.modelo||"");
+  var dias = op.estado==="Vendido" ? daysBetween(op.fechaCompra,op.fechaVenta) : daysBetween(op.fechaCompra);
+  var cells = [
+    ["Coste", (op.precioCompra||0)+"€"],
+    ["Venta", op.precioVenta ? op.precioVenta+"€" : "—"],
+    ["Beneficio", op.beneficioNeto!==null ? fmt(op.beneficioNeto,2)+"€" : "—"],
+    ["ROI", op.roi!==null ? fmt(op.roi,1)+"%" : "—"],
+    ["Canal", op.canalVenta||"—"],
+    ["Proveedor", op.proveedor],
+    ["Días", dias!==null ? dias+"d" : "—"],
+    ["Estado", op.estado],
+  ];
+  var html = '<div class="detail-grid">'
+    + cells.map(function(c) {
+        return '<div class="detail-cell"><div class="detail-cell-lbl">'+escHTML(c[0])+'</div><div class="detail-cell-val">'+escHTML(c[1])+'</div></div>';
+      }).join("")
+    + '</div>';
+  if (op.clienteNombre) html += '<div class="detail-info"><div class="detail-info-lbl">Cliente</div><div class="detail-info-val">'+escHTML(op.clienteNombre)+'</div></div>';
+  if (op.facturaNum)    html += '<div class="detail-info"><div class="detail-info-lbl">Factura</div><div class="detail-info-val" style="color:#c8aa6e">'+escHTML(op.facturaNum)+'</div></div>';
+  if (op.notas)         html += '<div class="detail-info" style="margin-bottom:20px"><div class="detail-info-lbl">Notas</div><div class="detail-info-val">'+escHTML(op.notas)+'</div></div>';
+  html += '<div class="detail-actions">'
+    + '<button class="btn-edit" onclick="openEdit(\''+op.id+'\')">Editar</button>'
+    + '<button class="btn-delete" onclick="deleteOp(\''+op.id+'\')">🗑</button>'
+    + '</div>';
+  document.getElementById("detalleBody").innerHTML = html;
+  openSheet("sheetDetalle");
+}
+
+// ══════════════════════════════════════════════════════
+// FORM
+// ══════════════════════════════════════════════════════
+function openNew() {
+  editingId = null;
+  document.getElementById("formTitulo").textContent = "Nueva operación";
+  document.getElementById("fMarca").value        = "";
+  document.getElementById("fModelo").value       = "";
+  document.getElementById("fMecanismo").value    = "Automático";
+  document.getElementById("fProveedor").value    = "Wallapop";
+  document.getElementById("fPrecioCompra").value = "";
+  document.getElementById("fGastoExtra").value   = "";
+  document.getElementById("fFechaCompra").value  = today();
+  document.getElementById("fCanalVenta").value   = "Catawiki";
+  document.getElementById("fEnvio").value        = "50";
+  document.getElementById("fPrecioVenta").value  = "";
+  document.getElementById("fEstado").value       = "Pendiente";
+  document.getElementById("fFechaVenta").value   = "";
+  document.getElementById("fCliente").value      = "";
+  document.getElementById("fFactura").value      = "";
+  document.getElementById("fNotas").value        = "";
+  document.getElementById("fechaVentaWrap").style.display = "none";
+  document.getElementById("previewBox").style.display = "none";
+  document.getElementById("saveBtn").textContent = "Guardar operación";
+  closeSheet("sheetDetalle");
+  openSheet("sheetForm");
+}
+
+function openEdit(id) {
+  var op = ops.find(function(o) { return String(o.id) === String(id); });
+  if (!op) return;
+  editingId = id;
+  document.getElementById("formTitulo").textContent = "Editar operación";
+  document.getElementById("fMarca").value        = op.marca||"";
+  document.getElementById("fModelo").value       = op.modelo||"";
+  document.getElementById("fMecanismo").value    = op.mecanismo||"Automático";
+  document.getElementById("fProveedor").value    = op.proveedor||"Wallapop";
+  document.getElementById("fPrecioCompra").value = op.precioCompra||"";
+  document.getElementById("fGastoExtra").value   = op.gastoExtra||"";
+  document.getElementById("fFechaCompra").value  = op.fechaCompra||today();
+  document.getElementById("fCanalVenta").value   = op.canalVenta||"Catawiki";
+  document.getElementById("fEnvio").value        = op.envio||"50";
+  document.getElementById("fPrecioVenta").value  = op.precioVenta||"";
+  document.getElementById("fEstado").value       = op.estado||"Pendiente";
+  document.getElementById("fFechaVenta").value   = op.fechaVenta||"";
+  document.getElementById("fCliente").value      = op.clienteNombre||"";
+  document.getElementById("fFactura").value      = op.facturaNum||"";
+  document.getElementById("fNotas").value        = op.notas||"";
+  document.getElementById("fechaVentaWrap").style.display = op.estado==="Vendido" ? "block" : "none";
+  document.getElementById("saveBtn").textContent = "Actualizar";
+  updatePreview();
+  closeSheet("sheetDetalle");
+  openSheet("sheetForm");
+}
+
+function toggleFechaVenta() {
+  var estado = document.getElementById("fEstado").value;
+  document.getElementById("fechaVentaWrap").style.display = estado==="Vendido" ? "block" : "none";
+}
+
+function updatePreview() {
+  var pc  = parseFloat(document.getElementById("fPrecioCompra").value)||0;
+  var ge  = parseFloat(document.getElementById("fGastoExtra").value)||0;
+  var pv  = parseFloat(document.getElementById("fPrecioVenta").value)||0;
+  var env = parseFloat(document.getElementById("fEnvio").value)||0;
+  var canal = document.getElementById("fCanalVenta").value;
+  var com = COMISIONES[canal]||0;
+  if (!pc && !pv) { document.getElementById("previewBox").style.display="none"; return; }
+  var coste   = pc + ge;
+  var ingreso = pv + env - pv*com - 10;
+  var benef   = ingreso - coste;
+  var roi     = coste > 0 ? (benef/coste)*100 : 0;
+  document.getElementById("pvCoste").textContent   = coste.toFixed(0)+"€";
+  document.getElementById("pvBenef").textContent   = benef.toFixed(0)+"€";
+  document.getElementById("pvBenef").style.color   = benef>=0?"#4cd964":"#ff3b30";
+  document.getElementById("pvROI").textContent     = roi.toFixed(0)+"%";
+  document.getElementById("pvROI").style.color     = roiColor(roi);
+  document.getElementById("pvIngreso").textContent = ingreso.toFixed(0)+"€";
+  document.getElementById("previewBox").style.display = "block";
+}
+
+async function saveOp() {
+  var marca = document.getElementById("fMarca").value.trim();
+  var pc    = document.getElementById("fPrecioCompra").value;
+  if (!marca || !pc) { alert("Marca y precio de compra son obligatorios"); return; }
+
+  var btn = document.getElementById("saveBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="sync-spinning">↻</span> Guardando...';
+
+  var pv    = parseFloat(document.getElementById("fPrecioVenta").value)||0;
+  var comp  = parseFloat(pc)||0;
+  var env   = parseFloat(document.getElementById("fEnvio").value)||0;
+  var canal = document.getElementById("fCanalVenta").value;
+  var com   = COMISIONES[canal]||0;
+  var ge    = parseFloat(document.getElementById("fGastoExtra").value)||0;
+  var coste = comp + ge;
+  var ingreso = pv + env - pv*com - 10;
+  var benef   = pv > 0 ? ingreso - coste : null;
+  var roi     = (benef !== null && coste > 0) ? (benef/coste)*100 : null;
+  var estado  = document.getElementById("fEstado").value;
+
+  var op = {
+    id:            editingId || String(Date.now()),
+    marca:         marca,
+    modelo:        document.getElementById("fModelo").value.trim(),
+    mecanismo:     document.getElementById("fMecanismo").value,
+    proveedor:     document.getElementById("fProveedor").value,
+    precioCompra:  comp,
+    gastoExtra:    ge,
+    fechaCompra:   document.getElementById("fFechaCompra").value,
+    canalVenta:    canal,
+    precioVenta:   pv,
+    envio:         env,
+    comision:      pv * com,
+    beneficioNeto: benef,
+    roi:           roi,
+    vendido:       estado === "Vendido",
+    estado:        estado,
+    fechaVenta:    estado==="Vendido" ? document.getElementById("fFechaVenta").value : "",
+    clienteNombre: document.getElementById("fCliente").value.trim(),
+    facturaNum:    document.getElementById("fFactura").value.trim(),
+    notas:         document.getElementById("fNotas").value.trim(),
+  };
+
+  // Optimistic update
+  if (editingId) {
+    ops = ops.map(function(o) { return String(o.id)===String(editingId) ? op : o; });
+  } else {
+    ops = [op].concat(ops);
+  }
+  saveLocal();
+  renderAll();
+  closeSheet("sheetForm");
+
+  btn.disabled = false;
+  btn.textContent = editingId ? "Actualizar" : "Guardar operación";
+
+  // Push to Sheet
+  await pushOp(editingId ? "update" : "create", op);
+}
+
+async function deleteOp(id) {
+  if (!confirm("¿Eliminar operación?")) return;
+  ops = ops.filter(function(o) { return String(o.id) !== String(id); });
+  saveLocal();
+  renderAll();
+  closeSheet("sheetDetalle");
+  await pushOp("delete", { id: String(id) });
+}
+
+// ══════════════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════════════
+function switchTab(name, tabBtn, navBtn) {
+  document.querySelectorAll(".tab-pane").forEach(function(el) { el.classList.remove("active"); });
+  document.querySelectorAll(".tab-btn").forEach(function(el) { el.classList.remove("active"); });
+  document.querySelectorAll(".nav-btn").forEach(function(el) { el.classList.remove("active"); });
+  document.getElementById("tab-"+name).classList.add("active");
+  if (tabBtn) tabBtn.classList.add("active");
+  document.getElementById("nav-"+name).classList.add("active");
+}
+
+function setFiltro(f) { filtro = f; renderOps(); }
+
+function openSheet(id)  { document.getElementById(id).classList.add("open"); document.body.style.overflow = "hidden"; }
+function closeSheet(id) { document.getElementById(id).classList.remove("open"); document.body.style.overflow = ""; }
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+ops = loadLocal();
+try { lastSync = parseInt(localStorage.getItem(STORAGE_SYNC)||"0"); } catch(e) {}
+renderAll();
+if (lastSync) setSyncUI("synced");
+pullFromSheet();
+</script>
+</body>
+</html>
